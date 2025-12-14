@@ -1,53 +1,100 @@
-/**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
- */
+import { DarkTheme as NavigationDarkTheme, DefaultTheme as NavigationLightTheme } from '@react-navigation/native';
+import { MD3DarkTheme, MD3LightTheme, type MD3Theme } from 'react-native-paper';
 
-import { Platform } from 'react-native';
-
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
+const palette = {
+  gold: '#d4af37',
+  goldBright: '#f5d572',
+  graphite: '#1a1d25',
+  charcoal: '#0d0f14',
+  slate: '#222632',
+  ash: '#9fa6b2',
+  error: '#ff6b6b',
+  success: '#2dd4bf',
+};
 
 export const Colors = {
   light: {
-    text: '#11181C',
-    background: '#fff',
-    tint: tintColorLight,
-    icon: '#687076',
-    tabIconDefault: '#687076',
-    tabIconSelected: tintColorLight,
+    text: '#1b1f2a',
+    background: '#f8f6ef',
+    tint: palette.gold,
+    icon: '#4b5563',
+    tabIconDefault: '#4b5563',
+    tabIconSelected: palette.gold,
+    card: '#ffffff',
+    muted: '#6b7280',
+    border: '#e5e7eb',
   },
   dark: {
-    text: '#ECEDEE',
-    background: '#151718',
-    tint: tintColorDark,
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
-    tabIconSelected: tintColorDark,
+    text: '#f8f4e8',
+    background: palette.charcoal,
+    tint: palette.gold,
+    icon: '#c6cbd6',
+    tabIconDefault: '#c6cbd6',
+    tabIconSelected: palette.gold,
+    card: palette.graphite,
+    muted: '#a5adbd',
+    border: palette.slate,
   },
 };
 
-export const Fonts = Platform.select({
-  ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
-    sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
-    serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
-    rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
-    mono: 'ui-monospace',
+export const paperThemes: Record<'light' | 'dark', MD3Theme> = {
+  light: {
+    ...MD3LightTheme,
+    colors: {
+      ...MD3LightTheme.colors,
+      primary: palette.gold,
+      primaryContainer: palette.goldBright,
+      secondary: palette.graphite,
+      background: Colors.light.background,
+      surface: Colors.light.card,
+      surfaceVariant: '#eceff4',
+      outline: Colors.light.border,
+      onSurface: Colors.light.text,
+      onSurfaceVariant: Colors.light.muted,
+      error: palette.error,
+    },
   },
-  default: {
-    sans: 'normal',
-    serif: 'serif',
-    rounded: 'normal',
-    mono: 'monospace',
+  dark: {
+    ...MD3DarkTheme,
+    colors: {
+      ...MD3DarkTheme.colors,
+      primary: palette.gold,
+      primaryContainer: '#3b2f16',
+      secondary: palette.slate,
+      background: Colors.dark.background,
+      surface: Colors.dark.card,
+      surfaceVariant: palette.slate,
+      outline: Colors.dark.border,
+      onSurface: Colors.dark.text,
+      onSurfaceVariant: Colors.dark.muted,
+      error: palette.error,
+    },
   },
-  web: {
-    sans: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-    serif: "Georgia, 'Times New Roman', serif",
-    rounded: "'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif",
-    mono: "SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
+};
+
+export const navigationThemes = {
+  light: {
+    ...NavigationLightTheme,
+    colors: {
+      ...NavigationLightTheme.colors,
+      primary: palette.gold,
+      card: Colors.light.card,
+      border: Colors.light.border,
+      background: Colors.light.background,
+      text: Colors.light.text,
+    },
   },
-});
+  dark: {
+    ...NavigationDarkTheme,
+    colors: {
+      ...NavigationDarkTheme.colors,
+      primary: palette.gold,
+      card: Colors.dark.card,
+      border: Colors.dark.border,
+      background: Colors.dark.background,
+      text: Colors.dark.text,
+    },
+  },
+};
+
+export const paletteColors = palette;

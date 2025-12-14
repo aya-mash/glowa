@@ -1,0 +1,25 @@
+{
+  "name": "glowa-functions",
+  "private": true,
+  "type": "commonjs",
+  "main": "lib/index.js",
+  "scripts": {
+    "build": "tsc",
+    "deploy": "firebase deploy --only functions",
+    "lint": "eslint --ext .ts src",
+    "serve": "firebase emulators:start --only functions"
+  },
+  "engines": {
+    "node": "22"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "firebase-admin": "^13.0.2",
+    "firebase-functions": "^6.2.0",
+    "sharp": "^0.34.2",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "Node16",
+    "lib": ["es2020"],
+    "outDir": "lib",
+    "rootDir": "src",
+    "moduleResolution": "node16",
+    "types": ["node"],
+    "baseUrl": "./",
+    "paths": {
+      "firebase-admin/*": ["./node_modules/firebase-admin/*"],
+      "firebase-functions/*": ["./node_modules/firebase-functions/*"]
+    },
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "skipLibCheck": true
+  },
+  "compileOnSave": true,
+  "include": ["src/**/*.ts"]
+}

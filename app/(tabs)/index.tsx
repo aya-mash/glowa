@@ -1,98 +1,142 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { Button, Card, Chip, Text } from 'react-native-paper';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { Colors } from '@/constants/theme';
+
+const features = [
+  'Upload once, get AI enhanced previews instantly',
+  'Gemini 3 Pro + Nano Banana for faithful enhancements',
+  'Paystack-secured unlocks in ZAR',
+  'Watermarked previews to protect your originals',
+];
+
+const steps = [
+  'Pick a photo and pick a style',
+  'We analyze faces and text to preserve identity',
+  'Gemini simulates the optics you choose',
+  'Watermarked preview is ready in under a minute',
+];
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const router = useRouter();
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  return (
+    <ScrollView contentContainerStyle={styles.container}>
+      <Card mode="outlined" style={styles.hero}>
+        <Card.Content style={styles.heroContent}>
+          <Chip style={styles.chip} icon="sparkles">Glowa · v0.0.1 MVP</Chip>
+          <Text variant="headlineLarge" style={styles.title}>
+            Turn everyday photos into flagship shots.
+          </Text>
+          <Text variant="bodyMedium" style={styles.subtitle}>
+            Upload, preview for free with watermark, then unlock full resolution after secure Paystack
+            verification.
+          </Text>
+          <View style={styles.heroButtons}>
+            <Button mode="contained" icon="upload" onPress={() => router.push('/(auth)/upload' as never)}>
+              Start a Glowup
+            </Button>
+            <Button mode="outlined" icon="clock" onPress={() => router.push('/(tabs)/explore')}>
+              View history
+            </Button>
+          </View>
+        </Card.Content>
+      </Card>
+
+      <View style={styles.grid}>
+        {features.map((feature) => (
+          <Card key={feature} mode="contained" style={styles.featureCard}>
+            <Card.Content>
+              <Text variant="titleMedium" style={styles.featureTitle}>
+                {feature}
+              </Text>
+            </Card.Content>
+          </Card>
+        ))}
+      </View>
+
+      <Card mode="outlined" style={styles.stepsCard}>
+        <Card.Title title="How it works" titleVariant="titleLarge" />
+        <Card.Content style={{ gap: 10 }}>
+          {steps.map((step, idx) => (
+            <View key={step} style={styles.stepRow}>
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{idx + 1}</Text>
+              </View>
+              <Text variant="bodyMedium" style={styles.stepText}>
+                {step}
+              </Text>
+            </View>
+          ))}
+        </Card.Content>
+      </Card>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  container: {
+    padding: 16,
+    gap: 16,
+  },
+  hero: {
+    borderRadius: 20,
+  },
+  heroContent: {
+    gap: 12,
+  },
+  chip: {
+    alignSelf: 'flex-start',
+  },
+  title: {
+    fontWeight: '800',
+    letterSpacing: -0.5,
+  },
+  subtitle: {
+    lineHeight: 22,
+  },
+  heroButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    flexWrap: 'wrap',
+  },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  featureCard: {
+    flex: 1,
+    minWidth: '48%',
+    borderRadius: 16,
+  },
+  featureTitle: {
+    fontWeight: '700',
+    lineHeight: 20,
+  },
+  stepsCard: {
+    borderRadius: 16,
+  },
+  stepRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  badge: {
+    height: 28,
+    width: 28,
+    borderRadius: 14,
+    backgroundColor: Colors.dark.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  badgeText: {
+    fontWeight: '800',
+  },
+  stepText: {
+    flex: 1,
   },
 });
