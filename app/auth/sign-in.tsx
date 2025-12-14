@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { z } from 'zod';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -10,16 +11,28 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuth } from '@/providers/auth-provider';
 
+const signInSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(1),
+});
+
 export default function SignInScreen() {
   const { signInEmail, signInGoogle, continueAnonymously } = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isValid, setIsValid] = useState(false);
   const colorScheme = useColorScheme() ?? 'light';
   const theme = Colors[colorScheme];
 
+  useEffect(() => {
+    const result = signInSchema.safeParse({ email, password });
+    setIsValid(result.success);
+  }, [email, password]);
+
   const handleEmailSignIn = async () => {
+    if (!isValid) return;
     setLoading(true);
     try {
       await signInEmail(email, password);
@@ -92,10 +105,10 @@ export default function SignInScreen() {
               <Pressable
                 style={({ pressed }) => [
                   styles.primaryButton,
-                  { backgroundColor: theme.tint, opacity: pressed ? 0.8 : 1 }
+                  { backgroundColor: theme.tint, opacity: (!isValid || loading) ? 0.5 : (pressed ? 0.8 : 1) }
                 ]}
                 onPress={handleEmailSignIn}
-                disabled={loading}
+                disabled={!isValid || loading}
               >
                 <ThemedText type="defaultSemiBold" style={{ color: '#fff' }}>Sign in</ThemedText>
               </Pressable>

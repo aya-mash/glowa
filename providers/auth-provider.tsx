@@ -1,4 +1,4 @@
-import * as AuthSession from 'expo-auth-session';
+import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
 import {
   GoogleAuthProvider,
@@ -46,6 +46,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(auth.currentUser);
   const [loading, setLoading] = useState(true);
 
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    iosClientId: googleClients.ios,
+    androidClientId: googleClients.android,
+    webClientId: googleClients.web,
+  });
+
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (next: User | null) => {
       setUser(next);
@@ -73,27 +79,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await signInWithPopup(auth, provider);
       return;
     }
-    const clientId = Platform.OS === 'ios' ? googleClients.ios : googleClients.android;
-    if (!clientId) {
-      throw new Error('Missing Google client ID. Set EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID / ANDROID.');
+    
+    if (!request) {
+      throw new Error('Google Sign-In is still initializing. Please try again in a moment.');
     }
 
-    const redirectUri = AuthSession.makeRedirectUri();
-    const state = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-    const url = new URL(googleDiscovery.authorizationEndpoint);
-    url.searchParams.append('client_id', clientId);
-    url.searchParams.append('redirect_uri', redirectUri);
-    url.searchParams.append('response_type', 'id_token');
-    url.searchParams.append('scope', 'openid email profile');
-    url.searchParams.append('nonce', state);
-    url.searchParams.append('state', state);
-
-    const result = await (AuthSession as unknown as { startAsync: (options: any) => Promise<any> }).startAsync({
-      authUrl: url.toString(),
-      returnUrl: redirectUri,
-    });
-
-    if (result.type !== 'success' || !result.params?.id_token) {
+    const result = await promptAsync();
+    if (result?.type !== 'success' || !result.params?.id_token) {
       throw new Error('Google sign-in was cancelled.');
     }
 

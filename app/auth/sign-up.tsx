@@ -1,14 +1,24 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { z } from 'zod';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuth } from '@/providers/auth-provider';
+
+const signUpSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(6),
+  confirm: z.string().min(6),
+}).refine((data) => data.password === data.confirm, {
+  message: "Passwords don't match",
+  path: ["confirm"],
+});
 
 export default function SignUpScreen() {
   const { signUpEmail, signInGoogle, continueAnonymously } = useAuth();
@@ -17,14 +27,17 @@ export default function SignUpScreen() {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isValid, setIsValid] = useState(false);
   const colorScheme = useColorScheme() ?? 'light';
   const theme = Colors[colorScheme];
 
+  useEffect(() => {
+    const result = signUpSchema.safeParse({ email, password, confirm });
+    setIsValid(result.success);
+  }, [email, password, confirm]);
+
   const handleSignUp = async () => {
-    if (password !== confirm) {
-      Alert.alert('Passwords do not match');
-      return;
-    }
+    if (!isValid) return;
     setLoading(true);
     try {
       await signUpEmail(email, password);
@@ -105,10 +118,10 @@ export default function SignUpScreen() {
               <Pressable
                 style={({ pressed }) => [
                   styles.primaryButton,
-                  { backgroundColor: theme.tint, opacity: pressed ? 0.8 : 1 }
+                  { backgroundColor: theme.tint, opacity: (!isValid || loading) ? 0.5 : (pressed ? 0.8 : 1) }
                 ]}
                 onPress={handleSignUp}
-                disabled={loading}
+                disabled={!isValid || loading}
               >
                 <ThemedText type="defaultSemiBold" style={{ color: '#fff' }}>Sign up</ThemedText>
               </Pressable>
