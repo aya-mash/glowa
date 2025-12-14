@@ -8,6 +8,13 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "build:all": "eas build --platform all",
+    "build:list": "eas build:list",
+    "build:android": "eas build --platform android",
+    "build:ios": "eas build --platform ios",
+    "export:web": "npx expo export --platform web",
+    "deploy:web": "eas deploy",
+    "deploy:web:prod": "eas deploy --prod",
     "lint": "expo lint"
   },
   "dependencies": {
