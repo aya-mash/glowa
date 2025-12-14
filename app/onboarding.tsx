@@ -78,6 +78,9 @@ export default function OnboardingScreen() {
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         style={{ flex: 1 }}
+        getItemLayout={(data, index) => (
+          { length: width, offset: width * index, index }
+        )}
         onMomentumScrollEnd={(e) => {
           const index = Math.round(e.nativeEvent.contentOffset.x / width);
           setCurrentIndex(index);
