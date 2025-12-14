@@ -1,6 +1,6 @@
 # Glowa (v0.0.1 MVP)
 
-![Cover Image](cover.png)
+![Cover Image](https://github.com/aya-mash/glowa/blob/master/public/cover.png?raw=true)
 
 AI photo enhancement with watermark previews and Paystack unlock, built on Expo Router + Firebase Functions + Google Gemini.
 
