@@ -75,10 +75,10 @@ yarn deploy   # or: firebase deploy --only functions
 ```
 
 Functions use:
-- `analyzeAndEnhance`: Gemini vision (`gemini-3-pro-preview`) for scene/face description; Gemini image (`gemini-3-pro-image-preview`) to generate enhanced preview; **High-visibility sharp watermarking (bold, drop-shadow)**; Firestore + Storage writes.
+- `analyzeAndEnhance`: Gemini vision (`gemini-pro`) for scene/face description; Gemini image (`nano-banana-pro`) to generate enhanced preview; **High-visibility sharp watermarking (bold, drop-shadow)**; Firestore + Storage writes.
 - `verifyAndUnlock`: Paystack verify, signed URL (24h) for originals, Firestore status update.
 
-> **Note**: Ensure your Google AI Studio API key has access to the `gemini-3-pro-preview` and `gemini-3-pro-image-preview` models.
+> **Note**: Ensure your Google AI Studio API key has access to the `gemini-pro` and `nano-banana-pro` models.
 
 ## Project Structure
 

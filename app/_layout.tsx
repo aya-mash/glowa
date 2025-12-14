@@ -42,6 +42,7 @@ export default function RootLayout() {
                 <Stack.Screen name="onboarding" options={{ headerShown: false }} />
                 <Stack.Screen name="subscribe" options={{ presentation: 'modal', headerShown: false }} />
                 <Stack.Screen name="glowup/[id]" options={{ headerTitle: 'Glowup', headerShown: true }} />
+                <Stack.Screen name="starter-kit-guide" options={{ headerTitle: 'Starter Kit Guide', headerShown: true }} />
               </Stack>
               <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
               <Toaster />

@@ -68,7 +68,7 @@ function buildWatermarkSvg(text: string) {
 async function describeVision(genAI: GoogleGenerativeAI, base64: string) {
   const cleanBase64 = stripDataUrlPrefix(base64);
   const visionModel = genAI.getGenerativeModel({
-    model: "gemini-3-pro-preview",
+    model: "gemini-pro",
   });
   const response = await visionModel.generateContent({
     contents: [
@@ -100,7 +100,7 @@ async function enhanceImage(
 Preserve the subject identity, pose, framing, and background. Remove artifacts. Do not add text or watermarks. Increase clarity, depth, dynamic range, and realistic skin tones.`;
 
   const model = genAI.getGenerativeModel({
-    model: "gemini-3-pro-image-preview",
+    model: "nano-banana-pro",
   });
   const response = await model.generateContent({
     contents: [
