@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
-import { Button, Text } from 'react-native-paper';
+import { ActivityIndicator, Platform, Pressable, StyleSheet } from 'react-native';
 import { usePaystack } from 'react-native-paystack-webview';
+
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { ThemedText } from './themed-text';
 
 interface PaystackTriggerProps {
   amountCents: number;
@@ -25,6 +28,8 @@ export function PaystackTrigger({
   const { popup } = usePaystack();
   const paystackKey = process.env.EXPO_PUBLIC_PAYSTACK_PUBLIC_KEY ?? '';
   const unavailable = !paystackKey;
+  const colorScheme = useColorScheme() ?? 'light';
+  const theme = Colors[colorScheme];
 
   const amount = amountCents / 100;
 
@@ -68,32 +73,31 @@ export function PaystackTrigger({
       }).openIframe();
     };
 
+    if (unavailable) {
+      return <ThemedText style={{ color: theme.icon, fontSize: 12 }}>Payments unavailable (Missing Key)</ThemedText>;
+    }
+
     return (
-      <View>
-        <Button mode="contained" disabled icon="lock-open-variant">
-          Pay ZAR {amount.toFixed(2)} to unlock
-        </Button>
-        <Text style={styles.helper}>
-          {unavailable
-            ? 'Add EXPO_PUBLIC_PAYSTACK_PUBLIC_KEY to enable payments.'
-            : scriptReady
-              ? 'Click below to pay securely via Paystack.'
-              : 'Loading Paystack...'}
-        </Text>
-        <Button
-          mode="contained"
-          onPress={launchWebPayment}
-          disabled={unavailable || !scriptReady || webLoading}
-          icon="lock-open-variant"
-          loading={webLoading}
-          style={{ marginTop: 8 }}
-        >
-          Pay ZAR {amount.toFixed(2)} to unlock (web)
-        </Button>
-      </View>
+      <Pressable
+        onPress={launchWebPayment}
+        disabled={!scriptReady || disabled || webLoading}
+        style={({ pressed }) => [
+          styles.button,
+          { backgroundColor: theme.tint, opacity: pressed || disabled ? 0.6 : 1 }
+        ]}
+      >
+        {webLoading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <ThemedText type="defaultSemiBold" style={{ color: '#fff' }}>
+            Pay ZAR {amount.toFixed(2)}
+          </ThemedText>
+        )}
+      </Pressable>
     );
   }
 
+  // Native
   const launchNativePayment = () => {
     if (!popup) return;
     popup.checkout({
@@ -113,38 +117,33 @@ export function PaystackTrigger({
     });
   };
 
+  if (unavailable) {
+    return <ThemedText style={{ color: theme.icon, fontSize: 12 }}>Payments unavailable (Missing Key)</ThemedText>;
+  }
+
   return (
-    <View>
-      <Button
-        mode="contained"
-        onPress={launchNativePayment}
-        disabled={disabled || unavailable}
-        icon="lock-open-variant"
-      >
-        Pay ZAR {amount.toFixed(2)} to unlock
-      </Button>
-      {unavailable ? (
-        <Text style={styles.helper}>Add EXPO_PUBLIC_PAYSTACK_PUBLIC_KEY to enable payments.</Text>
-      ) : null}
-    </View>
+    <Pressable
+      onPress={launchNativePayment}
+      disabled={disabled}
+      style={({ pressed }) => [
+        styles.button,
+        { backgroundColor: theme.tint, opacity: pressed || disabled ? 0.6 : 1 }
+      ]}
+    >
+      <ThemedText type="defaultSemiBold" style={{ color: '#fff' }}>
+        Pay ZAR {amount.toFixed(2)}
+      </ThemedText>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  modal: {
-    flex: 1,
-    backgroundColor: '#000000aa',
-    paddingTop: 48,
-    paddingHorizontal: 12,
-  },
-  card: {
-    flex: 1,
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  helper: {
-    marginTop: 6,
-    fontSize: 12,
-    opacity: 0.8,
+  button: {
+    height: 50,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
   },
 });
+

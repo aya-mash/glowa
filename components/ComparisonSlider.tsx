@@ -1,7 +1,10 @@
 import { Image } from 'expo-image';
 import { useMemo, useRef } from 'react';
 import { Animated, PanResponder, StyleSheet, useWindowDimensions, View } from 'react-native';
-import { Text, useTheme } from 'react-native-paper';
+
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { ThemedText } from './themed-text';
 
 interface ComparisonSliderProps {
   leftImage: string;
@@ -14,7 +17,8 @@ function clamp(value: number, min: number, max: number) {
 
 export function ComparisonSlider({ leftImage, rightImage }: ComparisonSliderProps) {
   const { width } = useWindowDimensions();
-  const theme = useTheme();
+  const colorScheme = useColorScheme() ?? 'light';
+  const theme = Colors[colorScheme];
   const handleSize = 38;
   const pan = useRef(new Animated.Value(width / 2)).current;
 
@@ -33,10 +37,13 @@ export function ComparisonSlider({ leftImage, rightImage }: ComparisonSliderProp
   return (
     <View style={styles.wrapper}>
       <View style={[styles.labelRow]}>
-        <Text style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>Original</Text>
-        <Text style={[styles.label, { color: theme.colors.primary }]}>Preview</Text>
+        <ThemedText type="caption" style={{ color: theme.icon }}>Original</ThemedText>
+        <ThemedText type="caption" style={{ color: theme.tint }}>Preview</ThemedText>
       </View>
-      <View style={[styles.frame, { borderColor: theme.colors.outline }]} {...responder.panHandlers}>
+      <View
+        style={[styles.frame, { borderColor: theme.border, backgroundColor: theme.card }]}
+        {...responder.panHandlers}
+      >
         <Image source={{ uri: rightImage }} style={StyleSheet.absoluteFill} contentFit="cover" />
         <Animated.View style={[StyleSheet.absoluteFill, { width: pan }]}> 
           <Image source={{ uri: leftImage }} style={StyleSheet.absoluteFill} contentFit="cover" />
@@ -45,13 +52,13 @@ export function ComparisonSlider({ leftImage, rightImage }: ComparisonSliderProp
           style={[
             styles.handle,
             {
-              backgroundColor: theme.colors.primary,
-              borderColor: theme.colors.onPrimary,
+              backgroundColor: theme.tint,
+              borderColor: '#fff',
               transform: [{ translateX: Animated.subtract(pan, handleSize / 2) }],
             },
           ]}
         >
-          <Text style={[styles.handleText, { color: theme.colors.onPrimary }]}>⇆</Text>
+          <ThemedText style={[styles.handleText, { color: '#fff' }]}>⇆</ThemedText>
         </Animated.View>
       </View>
     </View>
@@ -68,6 +75,10 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
     height: 360,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
   },
   handle: {
     position: 'absolute',
@@ -80,9 +91,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     transform: [{ translateY: -22 }],
     shadowColor: '#000',
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
   },
   handleText: {
     fontWeight: '700',
@@ -91,9 +102,5 @@ const styles = StyleSheet.create({
   labelRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-  },
-  label: {
-    fontSize: 14,
-    letterSpacing: 0.2,
   },
 });

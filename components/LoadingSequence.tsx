@@ -1,5 +1,8 @@
 import { StyleSheet, View } from 'react-native';
-import { ProgressBar, Text, useTheme } from 'react-native-paper';
+
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { ThemedText } from './themed-text';
 
 interface LoadingSequenceProps {
   steps: string[];
@@ -7,25 +10,39 @@ interface LoadingSequenceProps {
 }
 
 export function LoadingSequence({ steps, activeIndex }: LoadingSequenceProps) {
-  const theme = useTheme();
+  const colorScheme = useColorScheme() ?? 'light';
+  const theme = Colors[colorScheme];
   const progress = steps.length === 0 ? 0 : (activeIndex + 1) / steps.length;
 
   return (
     <View style={styles.container}>
-      <ProgressBar progress={progress} color={theme.colors.primary} />
+      <View style={[styles.progressBarTrack, { backgroundColor: theme.border }]}>
+        <View 
+          style={[
+            styles.progressBarFill, 
+            { 
+              width: `${progress * 100}%`, 
+              backgroundColor: theme.tint 
+            }
+          ]} 
+        />
+      </View>
       <View style={styles.steps}>
         {steps.map((step, idx) => {
           const isActive = idx === activeIndex;
           return (
-            <Text
+            <ThemedText
               key={step}
               style={[
                 styles.step,
-                { color: isActive ? theme.colors.primary : theme.colors.onSurfaceVariant },
+                {
+                  color: isActive ? theme.tint : theme.icon,
+                  fontWeight: isActive ? '700' : '500',
+                },
               ]}
             >
               {step}
-            </Text>
+            </ThemedText>
           );
         })}
       </View>
@@ -37,6 +54,16 @@ const styles = StyleSheet.create({
   container: {
     gap: 12,
     width: '100%',
+  },
+  progressBarTrack: {
+    height: 8,
+    borderRadius: 999,
+    overflow: 'hidden',
+    width: '100%',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 999,
   },
   steps: {
     gap: 6,

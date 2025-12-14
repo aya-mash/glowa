@@ -1,21 +1,50 @@
-import { onAuthStateChanged, signInAnonymously, type User } from 'firebase/auth';
+import * as AuthSession from 'expo-auth-session';
+import * as WebBrowser from 'expo-web-browser';
+import {
+  GoogleAuthProvider,
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  signInAnonymously,
+  signInWithCredential,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  type User,
+} from 'firebase/auth';
 import { ReactNode, createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
-import { ActivityIndicator, Text } from 'react-native-paper';
+import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 
+import { ThemedText } from '@/components/themed-text';
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { auth } from '@/lib/firebase';
 
 interface AuthContextValue {
   user: User | null;
   loading: boolean;
+  signInEmail: (email: string, password: string) => Promise<void>;
+  signUpEmail: (email: string, password: string) => Promise<void>;
+  signInGoogle: () => Promise<void>;
+  continueAnonymously: () => Promise<void>;
+  signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+WebBrowser.maybeCompleteAuthSession();
+
+const googleDiscovery = {
+  authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
+};
+
+const googleClients = {
+  web: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+  ios: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+  android: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+};
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(auth.currentUser);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (next: User | null) => {
@@ -25,30 +54,70 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return unsub;
   }, []);
 
-  useEffect(() => {
-    if (!loading && !user) {
-      signInAnonymously(auth).catch((err: unknown) => {
-        const message = err instanceof Error ? err.message : 'Unable to sign in anonymously';
-        setError(message);
-      });
-    }
-  }, [loading, user]);
+  const continueAnonymously = async () => {
+    if (auth.currentUser?.isAnonymous) return;
+    await signInAnonymously(auth);
+  };
 
-  const value = useMemo(() => ({ user, loading }), [user, loading]);
+  const signInEmail = async (email: string, password: string) => {
+    await signInWithEmailAndPassword(auth, email.trim(), password);
+  };
+
+  const signUpEmail = async (email: string, password: string) => {
+    await createUserWithEmailAndPassword(auth, email.trim(), password);
+  };
+
+  const signInGoogle = async () => {
+    if (Platform.OS === 'web') {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+      return;
+    }
+    const clientId = Platform.OS === 'ios' ? googleClients.ios : googleClients.android;
+    if (!clientId) {
+      throw new Error('Missing Google client ID. Set EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID / ANDROID.');
+    }
+
+    const redirectUri = AuthSession.makeRedirectUri();
+    const state = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    const url = new URL(googleDiscovery.authorizationEndpoint);
+    url.searchParams.append('client_id', clientId);
+    url.searchParams.append('redirect_uri', redirectUri);
+    url.searchParams.append('response_type', 'id_token');
+    url.searchParams.append('scope', 'openid email profile');
+    url.searchParams.append('nonce', state);
+    url.searchParams.append('state', state);
+
+    const result = await (AuthSession as unknown as { startAsync: (options: any) => Promise<any> }).startAsync({
+      authUrl: url.toString(),
+      returnUrl: redirectUri,
+    });
+
+    if (result.type !== 'success' || !result.params?.id_token) {
+      throw new Error('Google sign-in was cancelled.');
+    }
+
+    const credential = GoogleAuthProvider.credential(result.params.id_token);
+    await signInWithCredential(auth, credential);
+  };
+
+  const signOut = async () => {
+    await auth.signOut();
+  };
+
+  const colorScheme = useColorScheme() ?? 'light';
+  const theme = Colors[colorScheme];
+
+  const value = useMemo(
+    () => ({ user, loading, signInEmail, signUpEmail, signInGoogle, continueAnonymously, signOut }),
+    [user, loading]
+  );
 
   if (loading) {
     return (
-      <View style={styles.splash}>
-        <ActivityIndicator size="large" />
-        <Text style={styles.splashText}>Preparing Glowa...</Text>
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.splash}>
-        <Text style={styles.splashText}>Sign-in issue: {error}</Text>
+      <View style={[styles.splash, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.tint} />
+        <ThemedText style={styles.splashText}>Preparing Glowa...</ThemedText>
       </View>
     );
   }

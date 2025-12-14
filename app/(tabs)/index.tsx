@@ -1,142 +1,179 @@
+import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
-import { ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Card, Chip, Text } from 'react-native-paper';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { ThemedText } from '@/components/themed-text';
+import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
-
-const features = [
-  'Upload once, get AI enhanced previews instantly',
-  'Gemini 3 Pro + Nano Banana for faithful enhancements',
-  'Paystack-secured unlocks in ZAR',
-  'Watermarked previews to protect your originals',
-];
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useAuth } from '@/providers/auth-provider';
 
 const steps = [
-  'Pick a photo and pick a style',
-  'We analyze faces and text to preserve identity',
-  'Gemini simulates the optics you choose',
-  'Watermarked preview is ready in under a minute',
+  { icon: 'image-outline', text: 'Pick a photo and style' },
+  { icon: 'scan-outline', text: 'We analyze to preserve identity' },
+  { icon: 'sparkles-outline', text: 'AI simulates the optics' },
+  { icon: 'download-outline', text: 'Preview ready in < 1 min' },
 ];
 
 export default function HomeScreen() {
   const router = useRouter();
+  const colorScheme = useColorScheme() ?? 'light';
+  const { user } = useAuth();
+  const isGuest = !user || user.isAnonymous;
+  const theme = Colors[colorScheme];
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Card mode="outlined" style={styles.hero}>
-        <Card.Content style={styles.heroContent}>
-          <Chip style={styles.chip} icon="sparkles">Glowa · v0.0.1 MVP</Chip>
-          <Text variant="headlineLarge" style={styles.title}>
-            Turn everyday photos into flagship shots.
-          </Text>
-          <Text variant="bodyMedium" style={styles.subtitle}>
-            Upload, preview for free with watermark, then unlock full resolution after secure Paystack
-            verification.
-          </Text>
-          <View style={styles.heroButtons}>
-            <Button mode="contained" icon="upload" onPress={() => router.push('/(auth)/upload' as never)}>
-              Start a Glowup
-            </Button>
-            <Button mode="outlined" icon="clock" onPress={() => router.push('/(tabs)/explore')}>
-              View history
-            </Button>
-          </View>
-        </Card.Content>
-      </Card>
-
-      <View style={styles.grid}>
-        {features.map((feature) => (
-          <Card key={feature} mode="contained" style={styles.featureCard}>
-            <Card.Content>
-              <Text variant="titleMedium" style={styles.featureTitle}>
-                {feature}
-              </Text>
-            </Card.Content>
-          </Card>
-        ))}
-      </View>
-
-      <Card mode="outlined" style={styles.stepsCard}>
-        <Card.Title title="How it works" titleVariant="titleLarge" />
-        <Card.Content style={{ gap: 10 }}>
-          {steps.map((step, idx) => (
-            <View key={step} style={styles.stepRow}>
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{idx + 1}</Text>
-              </View>
-              <Text variant="bodyMedium" style={styles.stepText}>
-                {step}
-              </Text>
+    <ThemedView style={styles.container}>
+      <SafeAreaView edges={['top']} style={styles.safeArea}>
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          
+          <View style={styles.header}>
+            <ThemedText type="largeTitle">Glowa</ThemedText>
+            <View style={[styles.badge, { backgroundColor: theme.tint + '20' }]}>
+              <ThemedText type="caption" style={{ color: theme.tint, fontWeight: '600' }}>v0.0.1</ThemedText>
             </View>
-          ))}
-        </Card.Content>
-      </Card>
-    </ScrollView>
+          </View>
+
+          <View style={styles.hero}>
+            <ThemedText type="title" style={styles.heroTitle}>
+              Premium glowups,{'\n'}refined.
+            </ThemedText>
+            <ThemedText type="default" style={[styles.heroSubtitle, { color: theme.icon }]}>
+              Upload once, get a faithful preview fast. Pay only when you love it.
+            </ThemedText>
+          </View>
+
+          <View style={styles.actions}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.primaryButton,
+                { backgroundColor: theme.tint, opacity: pressed ? 0.8 : 1 }
+              ]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                router.push('/(auth)/upload' as never);
+              }}
+            >
+              <Ionicons name="cloud-upload-outline" size={20} color="#fff" style={{ marginRight: 8 }} />
+              <ThemedText type="defaultSemiBold" style={{ color: '#fff' }}>Start a Glowup</ThemedText>
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.secondaryButton,
+                { backgroundColor: theme.card, opacity: pressed ? 0.8 : 1 }
+              ]}
+              onPress={() => {
+                Haptics.selectionAsync();
+                if (isGuest) {
+                  router.push('/auth/sign-in' as never);
+                } else {
+                  router.push('/(tabs)/explore');
+                }
+              }}
+            >
+              <Ionicons name={isGuest ? 'person-outline' : 'time-outline'} size={20} color={theme.tint} style={{ marginRight: 8 }} />
+              <ThemedText type="defaultSemiBold" style={{ color: theme.tint }}>
+                {isGuest ? 'Sign in to sync' : 'View history'}
+              </ThemedText>
+            </Pressable>
+          </View>
+
+          <View style={styles.section}>
+            <ThemedText type="defaultSemiBold" style={styles.sectionHeader}>How it works</ThemedText>
+            <View style={[styles.card, { backgroundColor: theme.card }]}>
+              {steps.map((step, idx) => (
+                <View key={idx} style={[styles.stepRow, idx < steps.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.border }]}>
+                  <Ionicons name={step.icon as any} size={24} color={theme.tint} style={styles.stepIcon} />
+                  <ThemedText type="default" style={{ flex: 1 }}>{step.text}</ThemedText>
+                </View>
+              ))}
+            </View>
+          </View>
+
+        </ScrollView>
+      </SafeAreaView>
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    padding: 16,
-    gap: 16,
+    flex: 1,
+  },
+  safeArea: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 20,
+    paddingBottom: 40,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+  },
+  badge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
   hero: {
-    borderRadius: 20,
+    marginBottom: 32,
   },
-  heroContent: {
-    gap: 12,
+  heroTitle: {
+    marginBottom: 12,
   },
-  chip: {
-    alignSelf: 'flex-start',
+  heroSubtitle: {
+    lineHeight: 24,
   },
-  title: {
-    fontWeight: '800',
-    letterSpacing: -0.5,
+  actions: {
+    gap: 16,
+    marginBottom: 40,
   },
-  subtitle: {
-    lineHeight: 22,
-  },
-  heroButtons: {
+  primaryButton: {
+    height: 50,
+    borderRadius: 14,
     flexDirection: 'row',
-    gap: 12,
-    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  grid: {
+  secondaryButton: {
+    height: 50,
+    borderRadius: 14,
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  section: {
     gap: 12,
   },
-  featureCard: {
-    flex: 1,
-    minWidth: '48%',
-    borderRadius: 16,
+  sectionHeader: {
+    marginLeft: 4,
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    fontSize: 13,
+    color: '#8E8E93',
   },
-  featureTitle: {
-    fontWeight: '700',
-    lineHeight: 20,
-  },
-  stepsCard: {
-    borderRadius: 16,
+  card: {
+    borderRadius: 14,
+    overflow: 'hidden',
   },
   stepRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    padding: 16,
+    gap: 16,
   },
-  badge: {
-    height: 28,
-    width: 28,
-    borderRadius: 14,
-    backgroundColor: Colors.dark.card,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
-  },
-  badgeText: {
-    fontWeight: '800',
-  },
-  stepText: {
-    flex: 1,
+  stepIcon: {
+    width: 24,
   },
 });

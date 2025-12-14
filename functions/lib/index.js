@@ -44,9 +44,12 @@ function buildWatermarkSvg(text) {
         <style>
           @font-face { font-family: 'Inter'; }
         </style>
+        <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="2" dy="2" stdDeviation="2" flood-color="black" flood-opacity="0.5"/>
+        </filter>
       </defs>
-      <g transform="rotate(-35 400 400)" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="3">
-        <text x="50" y="430" font-size="56" font-family="Inter" fill="rgba(255,255,255,0.3)">
+      <g transform="rotate(-35 400 400)" fill="none">
+        <text x="50" y="430" font-size="56" font-family="Inter" fill="rgba(255,255,255,0.8)" filter="url(#shadow)" font-weight="bold">
           ${text}
         </text>
       </g>
@@ -62,7 +65,7 @@ async function describeVision(genAI, base64) {
             {
                 role: "user",
                 parts: [
-                    { text: "Describe faces, expressions, and visible text succinctly." },
+                    { text: "Describe faces, expressions, scene and visible text succinctly." },
                     { inlineData: { data: cleanBase64, mimeType: "image/jpeg" } },
                 ],
             },
@@ -108,74 +111,92 @@ exports.analyzeAndEnhance = (0, https_1.onCall)({ region: "us-central1", memory:
         throw new https_1.HttpsError("invalid-argument", "Invalid payload", parsed.error.format());
     }
     const { imageBase64, style } = parsed.data;
-    const genAI = new generative_ai_1.GoogleGenerativeAI(assertEnv(GEMINI_API_KEY, "GEMINI_API_KEY"));
-    const originalBuffer = Buffer.from(imageBase64, "base64");
-    const vision = await describeVision(genAI, imageBase64);
-    const enhancedBuffer = await enhanceImage(genAI, imageBase64, style, vision);
-    const id = (0, crypto_1.randomUUID)();
-    const originalPath = `originals/${uid}/${id}.jpg`;
-    const previewPath = `previews/${uid}/${id}.jpg`;
-    const originalPreviewPath = `previews/${uid}/${id}-original.jpg`;
-    await bucket.file(originalPath).save(originalBuffer, {
-        metadata: { contentType: "image/jpeg" },
-    });
-    const watermarkSvg = buildWatermarkSvg("GLOWUP PREVIEW");
-    const previewBuffer = await (0, sharp_1.default)(enhancedBuffer)
-        .composite([
-        {
-            input: watermarkSvg,
-            gravity: "center",
-            tile: true,
-            blend: "overlay",
-        },
-    ])
-        .jpeg({ quality: 92 })
-        .toBuffer();
-    const originalPreviewBuffer = await (0, sharp_1.default)(originalBuffer)
-        .resize({ width: 1600, height: 1600, fit: "inside" })
-        .composite([
-        {
-            input: watermarkSvg,
-            gravity: "center",
-            tile: true,
-            blend: "overlay",
-        },
-    ])
-        .jpeg({ quality: 82 })
-        .toBuffer();
-    const previewFile = bucket.file(previewPath);
-    await previewFile.save(previewBuffer, {
-        metadata: {
-            contentType: "image/jpeg",
-            cacheControl: "public, max-age=31536000",
-        },
-    });
-    await previewFile.makePublic();
-    const previewUrl = previewFile.publicUrl();
-    const originalPreviewFile = bucket.file(originalPreviewPath);
-    await originalPreviewFile.save(originalPreviewBuffer, {
-        metadata: {
-            contentType: "image/jpeg",
-            cacheControl: "public, max-age=31536000",
-        },
-    });
-    await originalPreviewFile.makePublic();
-    const originalPreviewUrl = originalPreviewFile.publicUrl();
-    await db.doc(`users/${uid}/glowups/${id}`).set({
-        id,
-        style,
-        status: "locked",
-        previewUrl,
-        originalPreviewUrl,
-        originalPath,
-        previewPath,
-        createdAt: new Date(),
-        priceCents: PRICE_CENTS,
-        currency: CURRENCY,
-        vision,
-    });
-    v2_1.logger.info("Glowup prepared", { uid, id, style });
-    return { glowupId: id, previewUrl, originalPreviewUrl, vision };
+    try {
+        const genAI = new generative_ai_1.GoogleGenerativeAI(assertEnv(GEMINI_API_KEY, "GEMINI_API_KEY"));
+        const originalBuffer = Buffer.from(imageBase64, "base64");
+        const vision = await describeVision(genAI, imageBase64);
+        const enhancedBuffer = await enhanceImage(genAI, imageBase64, style, vision);
+        const id = (0, crypto_1.randomUUID)();
+        const originalPath = `originals/${uid}/${id}.jpg`;
+        const previewPath = `previews/${uid}/${id}.jpg`;
+        const originalPreviewPath = `previews/${uid}/${id}-original.jpg`;
+        await bucket.file(originalPath).save(originalBuffer, {
+            metadata: { contentType: "image/jpeg" },
+        });
+        const watermarkSvg = buildWatermarkSvg("GLOWUP PREVIEW");
+        const previewBuffer = await (0, sharp_1.default)(enhancedBuffer)
+            .composite([
+            {
+                input: watermarkSvg,
+                gravity: "center",
+                tile: true,
+                blend: "overlay",
+            },
+        ])
+            .jpeg({ quality: 92 })
+            .toBuffer();
+        const originalPreviewBuffer = await (0, sharp_1.default)(originalBuffer)
+            .resize({ width: 1600, height: 1600, fit: "inside" })
+            .composite([
+            {
+                input: watermarkSvg,
+                gravity: "center",
+                tile: true,
+                blend: "overlay",
+            },
+        ])
+            .jpeg({ quality: 82 })
+            .toBuffer();
+        const previewFile = bucket.file(previewPath);
+        await previewFile.save(previewBuffer, {
+            metadata: {
+                contentType: "image/jpeg",
+                cacheControl: "public, max-age=31536000",
+            },
+        });
+        await previewFile.makePublic();
+        const previewUrl = previewFile.publicUrl();
+        const originalPreviewFile = bucket.file(originalPreviewPath);
+        await originalPreviewFile.save(originalPreviewBuffer, {
+            metadata: {
+                contentType: "image/jpeg",
+                cacheControl: "public, max-age=31536000",
+            },
+        });
+        await originalPreviewFile.makePublic();
+        const originalPreviewUrl = originalPreviewFile.publicUrl();
+        await db.doc(`users/${uid}/glowups/${id}`).set({
+            id,
+            style,
+            status: "locked",
+            previewUrl,
+            originalPreviewUrl,
+            originalPath,
+            previewPath,
+            createdAt: new Date(),
+            priceCents: PRICE_CENTS,
+            currency: CURRENCY,
+            vision,
+        });
+        v2_1.logger.info("Glowup prepared", { uid, id, style });
+        return { glowupId: id, previewUrl, originalPreviewUrl, vision };
+    }
+    catch (error) {
+        v2_1.logger.error("Error in analyzeAndEnhance", error);
+        // If it's already an HttpsError, rethrow it
+        if (error instanceof https_1.HttpsError) {
+            throw error;
+        }
+        // Handle specific known errors
+        if (error.message?.includes("Gemini")) {
+            throw new https_1.HttpsError("internal", "AI processing failed. Please try again.");
+        }
+        if (error.message?.includes("sharp")) {
+            throw new https_1.HttpsError("internal", "Image processing failed. Please try a different image.");
+        }
+        // Default generic error
+        throw new https_1.HttpsError("internal", "Something went wrong. Please try again later.");
+    }
 });
 exports.verifyAndUnlock = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
     const uid = request.auth?.uid;
@@ -187,45 +208,54 @@ exports.verifyAndUnlock = (0, https_1.onCall)({ region: "us-central1" }, async (
         throw new https_1.HttpsError("invalid-argument", "Invalid payload", parsed.error.format());
     }
     const { glowupId, reference } = parsed.data;
-    const secret = assertEnv(PAYSTACK_SECRET_KEY, "PAYSTACK_SECRET_KEY");
-    const verifyResponse = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
-        headers: {
-            Authorization: `Bearer ${secret}`,
-            "Content-Type": "application/json",
-        },
-    });
-    if (!verifyResponse.ok) {
-        throw new https_1.HttpsError("permission-denied", "Paystack verification failed.");
+    try {
+        const secret = assertEnv(PAYSTACK_SECRET_KEY, "PAYSTACK_SECRET_KEY");
+        const verifyResponse = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
+            headers: {
+                Authorization: `Bearer ${secret}`,
+                "Content-Type": "application/json",
+            },
+        });
+        if (!verifyResponse.ok) {
+            throw new https_1.HttpsError("permission-denied", "Paystack verification failed.");
+        }
+        const verifyJson = (await verifyResponse.json());
+        const status = verifyJson?.data?.status;
+        const amount = verifyJson?.data?.amount ?? 0;
+        if (status !== "success" || amount < PRICE_CENTS) {
+            throw new https_1.HttpsError("failed-precondition", "Payment not successful or amount below threshold.");
+        }
+        const ref = db.doc(`users/${uid}/glowups/${glowupId}`);
+        const snap = await ref.get();
+        if (!snap.exists) {
+            throw new https_1.HttpsError("not-found", "Glowup not found.");
+        }
+        const data = snap.data();
+        const originalPath = data.originalPath;
+        if (!originalPath) {
+            throw new https_1.HttpsError("failed-precondition", "Original file missing.");
+        }
+        const file = bucket.file(originalPath);
+        const expires = Date.now() + 24 * 60 * 60 * 1000;
+        const [downloadUrl] = await file.getSignedUrl({
+            version: "v4",
+            action: "read",
+            expires,
+        });
+        await ref.update({
+            status: "unlocked",
+            downloadUrl,
+            paystackReference: reference,
+            unlockedAt: new Date(),
+        });
+        v2_1.logger.info("Glowup unlocked", { uid, glowupId });
+        return { downloadUrl };
     }
-    const verifyJson = (await verifyResponse.json());
-    const status = verifyJson?.data?.status;
-    const amount = verifyJson?.data?.amount ?? 0;
-    if (status !== "success" || amount < PRICE_CENTS) {
-        throw new https_1.HttpsError("failed-precondition", "Payment not successful or amount below threshold.");
+    catch (error) {
+        v2_1.logger.error("Error in verifyAndUnlock", error);
+        if (error instanceof https_1.HttpsError) {
+            throw error;
+        }
+        throw new https_1.HttpsError("internal", "Verification failed. Please contact support.");
     }
-    const ref = db.doc(`users/${uid}/glowups/${glowupId}`);
-    const snap = await ref.get();
-    if (!snap.exists) {
-        throw new https_1.HttpsError("not-found", "Glowup not found.");
-    }
-    const data = snap.data();
-    const originalPath = data.originalPath;
-    if (!originalPath) {
-        throw new https_1.HttpsError("failed-precondition", "Original file missing.");
-    }
-    const file = bucket.file(originalPath);
-    const expires = Date.now() + 24 * 60 * 60 * 1000;
-    const [downloadUrl] = await file.getSignedUrl({
-        version: "v4",
-        action: "read",
-        expires,
-    });
-    await ref.update({
-        status: "unlocked",
-        downloadUrl,
-        paystackReference: reference,
-        unlockedAt: new Date(),
-    });
-    v2_1.logger.info("Glowup unlocked", { uid, glowupId });
-    return { downloadUrl };
 });

@@ -1,8 +1,10 @@
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { StyleSheet, TouchableOpacity, View } from 'react-native';
-import { Text, useTheme } from 'react-native-paper';
+import { Ionicons } from '@expo/vector-icons';
+import { Pressable, StyleSheet, View } from 'react-native';
 
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import type { GlowupStyle } from '@/types/glowup';
+import { ThemedText } from './themed-text';
 
 interface StyleSelectorProps {
   value: GlowupStyle;
@@ -14,43 +16,46 @@ const options: { key: GlowupStyle; title: string; subtitle: string; icon: string
     key: 'iphone',
     title: 'iPhone 17 Pro Max',
     subtitle: 'Computational HDR, crisp detail, wide dynamic range.',
-    icon: 'cellphone'
+    icon: 'phone-portrait-outline',
   },
   {
     key: 'dslr',
     title: 'High-End DSLR',
     subtitle: 'Canon R5 85mm f/1.2 look, cinematic bokeh.',
-    icon: 'camera'
+    icon: 'camera-outline',
   },
 ];
 
 export function StyleSelector({ value, onChange }: StyleSelectorProps) {
-  const theme = useTheme();
+  const colorScheme = useColorScheme() ?? 'light';
+  const theme = Colors[colorScheme];
 
   return (
     <View style={styles.container}>
-      {options.map((option) => {
+      {options.map((option, index) => {
         const selected = option.key === value;
         return (
-          <TouchableOpacity
-            key={option.key}
-            onPress={() => onChange(option.key)}
-            style={[styles.card, { borderColor: selected ? theme.colors.primary : theme.colors.outline }]}
-            activeOpacity={0.8}
-          >
-            <View style={styles.iconRow}>
-              <View style={[styles.iconCircle, { backgroundColor: theme.colors.primary }]}>
-                <MaterialCommunityIcons name={option.icon as any} size={22} color={theme.colors.onPrimary} />
+          <View key={option.key}>
+            <Pressable
+              onPress={() => onChange(option.key)}
+              style={({ pressed }) => [
+                styles.row,
+                { backgroundColor: pressed ? theme.background : 'transparent' }
+              ]}
+            >
+              <View style={styles.iconContainer}>
+                <Ionicons name={option.icon as any} size={24} color={theme.tint} />
               </View>
-              <Text style={[styles.title, { color: theme.colors.onSurface }]}>{option.title}</Text>
-            </View>
-            <Text style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>{option.subtitle}</Text>
-            <View style={[styles.pill, selected ? { backgroundColor: theme.colors.primary + '22' } : null]}>
-              <Text style={{ color: selected ? theme.colors.primary : theme.colors.onSurfaceVariant }}>
-                {selected ? 'Selected' : 'Tap to select'}
-              </Text>
-            </View>
-          </TouchableOpacity>
+              <View style={styles.textContainer}>
+                <ThemedText type="defaultSemiBold">{option.title}</ThemedText>
+                <ThemedText type="caption" style={{ color: theme.icon, marginTop: 2 }}>{option.subtitle}</ThemedText>
+              </View>
+              {selected && (
+                <Ionicons name="checkmark" size={20} color={theme.tint} style={styles.check} />
+              )}
+            </Pressable>
+            {index < options.length - 1 && <View style={[styles.separator, { backgroundColor: theme.border }]} />}
+          </View>
         );
       })}
     </View>
@@ -59,39 +64,28 @@ export function StyleSelector({ value, onChange }: StyleSelectorProps) {
 
 const styles = StyleSheet.create({
   container: {
-    gap: 12,
+    width: '100%',
   },
-  card: {
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 14,
-    backgroundColor: 'rgba(255,255,255,0.02)',
-    gap: 8,
-  },
-  iconRow: {
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
   },
-  iconCircle: {
-    height: 36,
-    width: 36,
-    borderRadius: 18,
+  iconContainer: {
+    marginRight: 12,
+    width: 32,
     alignItems: 'center',
-    justifyContent: 'center',
   },
-  title: {
-    fontSize: 18,
-    fontWeight: '700',
+  textContainer: {
+    flex: 1,
+    paddingRight: 8,
   },
-  subtitle: {
-    fontSize: 14,
-    lineHeight: 20,
+  check: {
+    marginLeft: 8,
   },
-  pill: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
+  separator: {
+    height: StyleSheet.hairlineWidth,
+    marginLeft: 60, 
   },
 });
