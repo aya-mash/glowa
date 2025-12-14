@@ -38,6 +38,7 @@ package-lock.json
 *.tsbuildinfo
 
 app-example
+/image-enhancer-ai-saas-starter-kit
 
 # generated native folders
 /ios
