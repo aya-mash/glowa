@@ -38,6 +38,37 @@ function assertEnv(value, name) {
     }
     return value;
 }
+async function retryOperation(operation, maxRetries = 3, baseDelay = 1000) {
+    let lastError;
+    for (let i = 0; i < maxRetries; i++) {
+        try {
+            return await operation();
+        }
+        catch (error) {
+            lastError = error;
+            const msg = (error.message || error.toString()).toLowerCase();
+            // Check for retryable errors (503 Service Unavailable, 429 Too Many Requests)
+            const isRetryable = msg.includes("503") ||
+                msg.includes("overloaded") ||
+                msg.includes("service unavailable") ||
+                msg.includes("429") ||
+                msg.includes("resource exhausted");
+            if (!isRetryable) {
+                throw error;
+            }
+            // Wait with exponential backoff + Jitter
+            // This prevents "thundering herd" if many users hit the limit at once
+            const backoff = baseDelay * Math.pow(2, i);
+            const jitter = Math.random() * 1000; // Random delay between 0-1000ms
+            const delay = backoff + jitter;
+            v2_1.logger.warn(`Attempt ${i + 1} failed, retrying in ${Math.round(delay)}ms...`, {
+                error: msg,
+            });
+            await new Promise((resolve) => setTimeout(resolve, delay));
+        }
+    }
+    throw lastError;
+}
 function buildWatermarkSvg(text) {
     return Buffer.from(`<svg width="800" height="800" xmlns="http://www.w3.org/2000/svg">
       <defs>
@@ -60,17 +91,19 @@ async function describeVision(genAI, base64) {
     const visionModel = genAI.getGenerativeModel({
         model: "gemini-3-pro-preview",
     });
-    const response = await visionModel.generateContent({
+    const response = await retryOperation(() => visionModel.generateContent({
         contents: [
             {
                 role: "user",
                 parts: [
-                    { text: "Describe faces, expressions, scene and visible text succinctly." },
+                    {
+                        text: "Describe faces, expressions, scene and visible text succinctly.",
+                    },
                     { inlineData: { data: cleanBase64, mimeType: "image/jpeg" } },
                 ],
             },
         ],
-    });
+    }));
     return response.response?.text()?.trim() || "No vision details provided.";
 }
 async function enhanceImage(genAI, base64, style, vision) {
@@ -83,7 +116,7 @@ Preserve the subject identity, pose, framing, and background. Remove artifacts. 
     const model = genAI.getGenerativeModel({
         model: "gemini-3-pro-image-preview",
     });
-    const response = await model.generateContent({
+    const response = await retryOperation(() => model.generateContent({
         contents: [
             {
                 role: "user",
@@ -93,7 +126,8 @@ Preserve the subject identity, pose, framing, and background. Remove artifacts. 
                 ],
             },
         ],
-    });
+    }), 4, // Reduced from 5 to keep total wait time under ~45s to avoid client timeouts
+    2000);
     const part = response.response?.candidates?.[0]?.content.parts?.find((p) => "inlineData" in p);
     const data = part?.inlineData?.data;
     if (!data) {
@@ -187,15 +221,62 @@ exports.analyzeAndEnhance = (0, https_1.onCall)({ region: "us-central1", memory:
         if (error instanceof https_1.HttpsError) {
             throw error;
         }
-        // Handle specific known errors
-        if (error.message?.includes("Gemini")) {
-            throw new https_1.HttpsError("internal", "AI processing failed. Please try again.");
+        const errorMessage = (error.message || error.toString()).toLowerCase();
+        // 1. Gemini/AI Overload or Service Issues
+        if (errorMessage.includes("503") ||
+            errorMessage.includes("overloaded") ||
+            errorMessage.includes("service unavailable")) {
+            throw new https_1.HttpsError("resource-exhausted", "The AI service is currently overloaded. Please try again in a few moments.");
         }
-        if (error.message?.includes("sharp")) {
-            throw new https_1.HttpsError("internal", "Image processing failed. Please try a different image.");
+        // 2. Gemini Safety/Policy Blocks
+        if (errorMessage.includes("safety") ||
+            errorMessage.includes("blocked") ||
+            errorMessage.includes("policy")) {
+            throw new https_1.HttpsError("invalid-argument", "The image was flagged by safety filters. Please try a different photo.");
+        }
+        // 3. Gemini Quota/Rate Limits
+        if (errorMessage.includes("429") ||
+            errorMessage.includes("quota") ||
+            errorMessage.includes("rate limit")) {
+            throw new https_1.HttpsError("resource-exhausted", "AI usage limit reached. Please try again later.");
+        }
+        // 4. Specific Logic Errors
+        if (errorMessage.includes("did not return an image")) {
+            throw new https_1.HttpsError("internal", "The AI analyzed the image but failed to generate an enhancement. Please try again.");
+        }
+        // 5. General Gemini Errors
+        if (errorMessage.includes("googlegenerativeai") ||
+            errorMessage.includes("gemini") ||
+            errorMessage.includes("generatecontent") ||
+            errorMessage.includes("candidate")) {
+            throw new https_1.HttpsError("internal", "AI processing failed to generate a result. Please try again.");
+        }
+        // 6. Sharp/Image Processing Errors
+        if (errorMessage.includes("sharp") ||
+            errorMessage.includes("input buffer") ||
+            errorMessage.includes("pixel") ||
+            errorMessage.includes("image data")) {
+            if (errorMessage.includes("unsupported image format")) {
+                throw new https_1.HttpsError("invalid-argument", "Unsupported image format. Please use JPG, PNG, or WebP.");
+            }
+            if (errorMessage.includes("too large")) {
+                throw new https_1.HttpsError("invalid-argument", "Image is too large or complex to process.");
+            }
+            throw new https_1.HttpsError("invalid-argument", "The image could not be processed. It might be corrupt or incompatible.");
+        }
+        // 7. Firebase/Infrastructure Errors
+        if (errorMessage.includes("storage") ||
+            errorMessage.includes("firestore") ||
+            errorMessage.includes("bucket")) {
+            throw new https_1.HttpsError("unavailable", "System storage is temporarily unavailable. Please try again.");
+        }
+        // 8. Network/Fetch Errors
+        if (errorMessage.includes("fetch failed") ||
+            errorMessage.includes("network")) {
+            throw new https_1.HttpsError("unavailable", "Network error occurred while communicating with AI services.");
         }
         // Default generic error
-        throw new https_1.HttpsError("internal", "Something went wrong. Please try again later.");
+        throw new https_1.HttpsError("internal", "An unexpected error occurred. Please try again later.");
     }
 });
 exports.verifyAndUnlock = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
