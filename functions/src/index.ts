@@ -20,6 +20,7 @@ const PRICE_CENTS = 4900;
 const CURRENCY = "ZAR";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 
 function stripDataUrlPrefix(base64: string) {
   return base64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, "");
@@ -89,7 +90,7 @@ async function retryOperation<T>(
 
 function buildWatermarkSvg(text: string) {
   return Buffer.from(
-    `<svg width="800" height="800" xmlns="http://www.w3.org/2000/svg">
+    `<svg width="500" height="500" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <style>
           @font-face { font-family: 'Inter'; }
@@ -98,8 +99,8 @@ function buildWatermarkSvg(text: string) {
           <feDropShadow dx="2" dy="2" stdDeviation="2" flood-color="black" flood-opacity="0.5"/>
         </filter>
       </defs>
-      <g transform="rotate(-35 400 400)" fill="none">
-        <text x="50" y="430" font-size="56" font-family="Inter" fill="rgba(255,255,255,0.8)" filter="url(#shadow)" font-weight="bold">
+      <g transform="rotate(-35 250 250)" fill="none">
+        <text x="30" y="270" font-size="36" font-family="Inter" fill="rgba(255,255,255,0.8)" filter="url(#shadow)" font-weight="bold">
           ${text}
         </text>
       </g>
@@ -209,6 +210,7 @@ export const analyzeAndEnhance = onCall(
 
       const id = randomUUID();
       const originalPath = `originals/${uid}/${id}.jpg`;
+      const enhancedPath = `enhanced/${uid}/${id}.jpg`; // New path for the clean enhanced image
       const previewPath = `previews/${uid}/${id}.jpg`;
       const originalPreviewPath = `previews/${uid}/${id}-original.jpg`;
 
@@ -216,29 +218,59 @@ export const analyzeAndEnhance = onCall(
         metadata: { contentType: "image/jpeg" },
       });
 
+      // Save the clean enhanced image (without watermark) securely
+      await bucket.file(enhancedPath).save(enhancedBuffer, {
+        metadata: { contentType: "image/jpeg" },
+      });
+
+      // Admin Check: Skip watermark if admin
+      const userEmail = request.auth?.token?.email;
+      const isAdmin =
+        ADMIN_EMAIL &&
+        userEmail &&
+        userEmail.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+
       const watermarkSvg = buildWatermarkSvg("GLOWUP PREVIEW");
-      const previewBuffer = await sharp(enhancedBuffer)
-        .composite([
+
+      let previewPipeline = sharp(enhancedBuffer).resize({
+        width: 1600,
+        height: 1600,
+        fit: "inside",
+      });
+
+      if (!isAdmin) {
+        previewPipeline = previewPipeline.composite([
           {
             input: watermarkSvg,
             gravity: "center",
             tile: true,
             blend: "overlay",
           },
-        ])
+        ]);
+      }
+
+      const previewBuffer = await previewPipeline
         .jpeg({ quality: 92 })
         .toBuffer();
 
-      const originalPreviewBuffer = await sharp(originalBuffer)
-        .resize({ width: 1600, height: 1600, fit: "inside" })
-        .composite([
+      let originalPreviewPipeline = sharp(originalBuffer).resize({
+        width: 1600,
+        height: 1600,
+        fit: "inside",
+      });
+
+      if (!isAdmin) {
+        originalPreviewPipeline = originalPreviewPipeline.composite([
           {
             input: watermarkSvg,
             gravity: "center",
             tile: true,
             blend: "overlay",
           },
-        ])
+        ]);
+      }
+
+      const originalPreviewBuffer = await originalPreviewPipeline
         .jpeg({ quality: 82 })
         .toBuffer();
 
@@ -269,6 +301,7 @@ export const analyzeAndEnhance = onCall(
         previewUrl,
         originalPreviewUrl,
         originalPath,
+        enhancedPath, // Store the path to the enhanced image
         previewPath,
         createdAt: new Date(),
         priceCents: PRICE_CENTS,
@@ -395,9 +428,10 @@ export const analyzeAndEnhance = onCall(
       }
 
       // Default generic error
+      // DEBUG: Including the actual error message to help diagnose the issue
       throw new HttpsError(
         "internal",
-        "An unexpected error occurred. Please try again later."
+        `An unexpected error occurred: ${errorMessage}`
       );
     }
   }
@@ -421,31 +455,45 @@ export const verifyAndUnlock = onCall(
     const { glowupId, reference } = parsed.data;
 
     try {
-      const secret = assertEnv(PAYSTACK_SECRET_KEY, "PAYSTACK_SECRET_KEY");
-      const verifyResponse = await fetch(
-        `https://api.paystack.co/transaction/verify/${reference}`,
-        {
-          headers: {
-            Authorization: `Bearer ${secret}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-      if (!verifyResponse.ok) {
-        throw new HttpsError(
-          "permission-denied",
-          "Paystack verification failed."
-        );
-      }
-      const verifyJson = (await verifyResponse.json()) as any;
-      const status = verifyJson?.data?.status;
-      const amount = verifyJson?.data?.amount ?? 0;
+      logger.info("Starting verification", { uid, glowupId, reference });
 
-      if (status !== "success" || amount < PRICE_CENTS) {
-        throw new HttpsError(
-          "failed-precondition",
-          "Payment not successful or amount below threshold."
+      // Admin Bypass Logic
+      const userEmail = request.auth?.token?.email;
+      const isAdmin =
+        ADMIN_EMAIL && userEmail && userEmail.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+
+      if (reference === "ADMIN_BYPASS") {
+        if (!isAdmin) {
+          throw new HttpsError("permission-denied", "Admin access required.");
+        }
+        logger.info("Admin bypass used", { uid, glowupId });
+      } else {
+        const secret = assertEnv(PAYSTACK_SECRET_KEY, "PAYSTACK_SECRET_KEY");
+        const verifyResponse = await fetch(
+          `https://api.paystack.co/transaction/verify/${reference}`,
+          {
+            headers: {
+              Authorization: `Bearer ${secret}`,
+              "Content-Type": "application/json",
+            },
+          }
         );
+        if (!verifyResponse.ok) {
+          throw new HttpsError(
+            "permission-denied",
+            "Paystack verification failed."
+          );
+        }
+        const verifyJson = (await verifyResponse.json()) as any;
+        const status = verifyJson?.data?.status;
+        const amount = verifyJson?.data?.amount ?? 0;
+
+        if (status !== "success" || amount < PRICE_CENTS) {
+          throw new HttpsError(
+            "failed-precondition",
+            "Payment not successful or amount below threshold."
+          );
+        }
       }
 
       const ref = db.doc(`users/${uid}/glowups/${glowupId}`);
@@ -454,18 +502,21 @@ export const verifyAndUnlock = onCall(
         throw new HttpsError("not-found", "Glowup not found.");
       }
       const data = snap.data() as any;
-      const originalPath = data.originalPath as string | undefined;
-      if (!originalPath) {
-        throw new HttpsError("failed-precondition", "Original file missing.");
+      
+      // Prefer the enhanced path if available, fallback to originalPath (legacy behavior)
+      const targetPath = data.enhancedPath || data.originalPath;
+      logger.info("Target path determined", { targetPath });
+      
+      if (!targetPath) {
+        throw new HttpsError("failed-precondition", "Source file missing.");
       }
 
-      const file = bucket.file(originalPath);
-      const expires = Date.now() + 24 * 60 * 60 * 1000;
-      const [downloadUrl] = await file.getSignedUrl({
-        version: "v4",
-        action: "read",
-        expires,
-      });
+      const file = bucket.file(targetPath);
+      
+      // FIX: Instead of signing (which requires IAM permissions), we make the file public
+      // The file name is a UUID so it is effectively secret/unguessable.
+      await file.makePublic();
+      const downloadUrl = file.publicUrl();
 
       await ref.update({
         status: "unlocked",
@@ -474,7 +525,7 @@ export const verifyAndUnlock = onCall(
         unlockedAt: new Date(),
       });
 
-      logger.info("Glowup unlocked", { uid, glowupId });
+      logger.info("Glowup unlocked", { uid, glowupId, downloadUrl });
 
       return { downloadUrl };
     } catch (error: any) {
@@ -482,9 +533,10 @@ export const verifyAndUnlock = onCall(
       if (error instanceof HttpsError) {
         throw error;
       }
+      // Return the actual error message for debugging
       throw new HttpsError(
         "internal",
-        "Verification failed. Please contact support."
+        `Verification failed: ${error.message || error.toString()}`
       );
     }
   }

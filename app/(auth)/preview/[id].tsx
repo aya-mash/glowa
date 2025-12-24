@@ -24,6 +24,8 @@ export default function PreviewScreen() {
 
   const reference = useMemo(() => `${id}-${Date.now()}`, [id]);
   const email = user?.email ?? 'guest@glowa.app';
+  const adminEmail = process.env.EXPO_PUBLIC_ADMIN_EMAIL;
+  const isAdmin = user?.email && adminEmail && user.email.toLowerCase() === adminEmail.toLowerCase();
 
   const handleVerify = async (ref: string) => {
     if (!glowup) return;
@@ -109,6 +111,24 @@ export default function PreviewScreen() {
               onSuccess={handleVerify}
               disabled={verifying}
             />
+
+            {isAdmin && (
+              <Pressable
+                onPress={() => handleVerify('ADMIN_BYPASS')}
+                style={({ pressed }) => [
+                  styles.button,
+                  { backgroundColor: '#FFD700', marginTop: 12, opacity: pressed ? 0.8 : 1 },
+                ]}
+                disabled={verifying}
+              >
+                <ThemedText
+                  type="defaultSemiBold"
+                  style={{ color: '#000', textAlign: 'center' }}
+                >
+                  👑 Admin Unlock (Free)
+                </ThemedText>
+              </Pressable>
+            )}
             
             {verifying && <ActivityIndicator style={{ marginTop: 12 }} color={theme.tint} />}
             
